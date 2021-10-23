@@ -131,12 +131,14 @@ modes = {
     '\n': Mode.FLOW,
     '\t\n': Mode.IO
 }
+
 stackCmds = {
     ' ': StackCmds.PUSH,
     '\n ': StackCmds.DUPL,
     '\n\t': StackCmds.SWAP,
-    '\n\n': StackCmds.DISC
+    '\n\n': StackCmds.DISC,
 }
+
 arithCmds = {
     '  ': ArithCmds.ADD,
     ' \t': ArithCmds.SUB,
@@ -186,9 +188,10 @@ cmd = None
 it = impTrie
 cmdTrie = None
 stage = Stage.IMP
+token_charset = '\t\n '
 
 for e in code:
-    if e not in '\t\n ':
+    if e not in token_charset:
         continue
 
     if Stage.IMP == stage:
@@ -210,6 +213,15 @@ for e in code:
                 if StackCmds.PUSH == cmd:
                     par.clear()
                     stage = Stage.PARAM
+                elif StackCmds.DUPL:
+                    if len(stk) > 0:
+                        stk.append(stk[-1])
+                elif StackCmds.SWAP:
+                    if len(stk) >= 2:
+                        stk[-1], stk[-2] = stk[-2], stk[-1]
+                elif StackCmds.DISC:
+                    if len(stk) > 0:
+                        stk.pop()
                 elif IOCmds.OTC == cmd:
                     print(chr(stk[-1]), end='')
                     stage = Stage.IMP
