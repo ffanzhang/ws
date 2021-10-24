@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 import sys
 from enum import Enum, unique
 
@@ -178,10 +180,11 @@ modeToTrie = {
     Mode.IO: ioTrie
 }
 
-code = sys.stdin.read()
+#code = sys.stdin.read()
 imp = []
 par = []
 stk = []
+labels = {}
 mode = Mode.UNKNOWN
 cmd = None
 
@@ -190,62 +193,86 @@ cmdTrie = None
 stage = Stage.IMP
 token_charset = '\t\n '
 
-for e in code:
-    if e not in token_charset:
-        continue
 
-    if Stage.IMP == stage:
-        it = it.getChild(e)
-        if it != None:
-            mode = it.getIdentifier()
-            if mode != None:
-                cmdTrie = modeToTrie.get(mode, None)
-                it = cmdTrie
-                stage = Stage.CMD
-        else:
-            raise Exception("Parse IMP error")
+def process(code, stage, it):
+    for i, e in enumerate(code):
+        if e not in token_charset:
+            continue
 
-    elif Stage.CMD == stage:
-        it = it.getChild(e)
-        if it != None:
-            cmd = it.getIdentifier()
-            if cmd != None:
-                if StackCmds.PUSH == cmd:
-                    par.clear()
-                    stage = Stage.PARAM
-                elif StackCmds.DUPL:
-                    if len(stk) > 0:
-                        stk.append(stk[-1])
-                elif StackCmds.SWAP:
-                    if len(stk) >= 2:
-                        stk[-1], stk[-2] = stk[-2], stk[-1]
-                elif StackCmds.DISC:
-                    if len(stk) > 0:
-                        stk.pop()
-                elif IOCmds.OTC == cmd:
-                    print(chr(stk[-1]), end='')
-                    stage = Stage.IMP
-                    it = impTrie
-                elif IOCmds.OTN == cmd:
-                    print(stk[-1], end='')
-                    stage = Stage.IMP
-                    it = impTrie
-                elif FlowCmds.ENDP == cmd:
-                    break
-                else:
-                    raise Exception("Not Implemented {}".format(cmd))
-        else:
-            raise Exception("Parse CMD error")
+        if Stage.IMP == stage:
+            it = it.getChild(e)
+            if it != None:
+                mode = it.getIdentifier()
+                if mode != None:
+                    cmdTrie = modeToTrie.get(mode, None)
+                    it = cmdTrie
+                    stage = Stage.CMD
+            else:
+                raise Exception("Parse IMP error")
 
-    elif Stage.PARAM == stage:
-        if e != '\n':
-            par.append(e)
-        else:
-            s = ''.join(list(map(lambda x: '0' if x == ' ' else '1', par)))
-            if len(s) > 0:
-                num = int(s, 2)
-                if StackCmds.PUSH == cmd:
-                    stk.append(num)
-            par.clear()
-            stage = Stage.IMP
-            it = impTrie
+        elif Stage.CMD == stage:
+            it = it.getChild(e)
+            if it != None:
+                cmd = it.getIdentifier()
+                if cmd != None:
+                    if StackCmds.PUSH == cmd:
+                        par.clear()
+                        stage = Stage.PARAM
+                    elif StackCmds.DUPL == cmd:
+                        if len(stk) > 0:
+                            stk.append(stk[-1])
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif StackCmds.SWAP == cmd:
+                        if len(stk) >= 2:
+                            stk[-1], stk[-2] = stk[-2], stk[-1]
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif StackCmds.DISC == cmd:
+                        if len(stk) > 0:
+                            stk.pop()
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif IOCmds.OTC == cmd:
+                        print(chr(stk[-1]), end='')
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif IOCmds.OTN == cmd:
+                        print(stk[-1], end='')
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif FlowCmds.MARK == cmd:
+                        stage = Stage.PARAM
+                    elif FlowCmds.ENDP == cmd:
+                        return
+                    else:
+                        raise Exception("Not Implemented {}".format(cmd))
+            else:
+                raise Exception("Parse CMD error")
+
+        elif Stage.PARAM == stage:
+            if e != '\n':
+                par.append(e)
+            else:
+                s = ''.join(list(map(lambda x: '0' if x == ' ' else '1', par)))
+                if len(s) > 0:
+                    num = int(s, 2)
+                    if StackCmds.PUSH == cmd:
+                        stk.append(num)
+                    if FlowCmds.MARK == cmd:
+                        labels[s] = i + 1
+                par.clear()
+                stage = Stage.IMP
+                it = impTrie
+
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print(
+            "Usage: ./ws.py <path_of_ws_program>, or python/3 ws.py <path_of_ws_program>"
+        )
+    else:
+        path = sys.argv[1]
+        with open(path, 'r') as f:
+            code = f.read()
+            process(code, stage, it)
