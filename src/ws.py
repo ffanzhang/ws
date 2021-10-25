@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import sys
+import operator
 from enum import Enum, unique
 
 
@@ -148,7 +149,9 @@ arithCmds = {
     '\t ': ArithCmds.DIV,
     '\t\t': ArithCmds.MOD
 }
+
 heapCmds = {' ': HeapCmds.PUT, '\t': HeapCmds.GET}
+
 flowCmds = {
     '  ': FlowCmds.MARK,
     ' \t': FlowCmds.CALL,
@@ -158,6 +161,7 @@ flowCmds = {
     '\t\n': FlowCmds.ENDS,
     '\n\n': FlowCmds.ENDP
 }
+
 ioCmds = {
     '  ': IOCmds.OTC,
     ' \t': IOCmds.OTN,
@@ -193,6 +197,14 @@ cmdTrie = None
 stage = Stage.IMP
 token_charset = '\t\n '
 
+def arith_op(stack, arith_method):
+    try:
+        a, b = stack[-1], stack[-2]
+        stack.pop()
+        stack.pop()
+        stack.append(arith_method(a, b))
+    except IndexError:
+        raise Exception("Arith Exception")
 
 def process(code, stage, it):
     for i, e in enumerate(code):
@@ -239,6 +251,26 @@ def process(code, stage, it):
                         it = impTrie
                     elif IOCmds.OTN == cmd:
                         print(stk[-1], end='')
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif ArithCmds.ADD == cmd:
+                        arith_op(stk, operator.add)
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif ArithCmds.SUB == cmd:
+                        arith_op(stk, operator.sub)
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif ArithCmds.MUL == cmd:
+                        arith_op(stk, operator.mul)
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif ArithCmds.DIV == cmd:
+                        arith_op(stk, operator.floordiv)
+                        stage = Stage.IMP
+                        it = impTrie
+                    elif ArithCmds.MOD == cmd:
+                        arith_op(stk, operator.mod)
                         stage = Stage.IMP
                         it = impTrie
                     elif FlowCmds.MARK == cmd:
