@@ -1,6 +1,7 @@
 import sys
 from enum import Enum, unique
 
+CONFIG_ZERO_BASED_INDEX = True
 
 @unique
 class Stage(Enum):
@@ -26,6 +27,8 @@ class StackCmds(Enum):
     DUPL = 1
     SWAP = 2
     DISC = 3
+    CPYN = 4
+    SLDN = 5
 
 
 @unique
@@ -135,7 +138,9 @@ stackCmds = {
     ' ': StackCmds.PUSH,
     '\n ': StackCmds.DUPL,
     '\n\t': StackCmds.SWAP,
-    '\n\n': StackCmds.DISC
+    '\n\n': StackCmds.DISC,
+    '\t ': StackCmds.CPYN,
+    '\t\n': StackCmds.SLDN
 }
 arithCmds = {
     '  ': ArithCmds.ADD,
@@ -196,6 +201,7 @@ for e in code:
         if it != None:
             mode = it.getIdentifier()
             if mode != None:
+                cmd = None
                 cmdTrie = modeToTrie.get(mode, None)
                 it = cmdTrie
                 stage = Stage.CMD
@@ -207,8 +213,12 @@ for e in code:
         if it != None:
             cmd = it.getIdentifier()
             if cmd != None:
+                par.clear()
                 if StackCmds.PUSH == cmd:
-                    par.clear()
+                    stage = Stage.PARAM
+                elif StackCmds.CPYN == cmd:
+                    stage = Stage.PARAM
+                elif StackCmds.SLDN == cmd:
                     stage = Stage.PARAM
                 elif IOCmds.OTC == cmd:
                     print(chr(stk[-1]), end='')
@@ -234,6 +244,17 @@ for e in code:
                 num = int(s, 2)
                 if StackCmds.PUSH == cmd:
                     stk.append(num)
+                elif StackCmds.CPYN == cmd:
+                    if not CONFIG_ZERO_BASED_INDEX:
+                        num -= 1
+                    stk.append(stk[num])
+                elif StackCmds.SLDN == cmd:
+                    if len(stk) > 0:
+                        t = stk.pop()
+                        while len(stk) > 0 and num > 0:
+                            stk.pop()
+                            num -= 1
+                        stk.append(t)
             par.clear()
             stage = Stage.IMP
             it = impTrie
