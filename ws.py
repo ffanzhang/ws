@@ -182,12 +182,17 @@ par = []
 stk = []
 mode = Mode.UNKNOWN
 cmd = None
+labels = dict()
 
 it = impTrie
 cmdTrie = None
 stage = Stage.IMP
+i = 0
 
-for e in code:
+while i < len(code):
+    e = code[i]
+    i += 1
+
     if e not in '\t\n ':
         continue
 
@@ -218,6 +223,16 @@ for e in code:
                     print(stk[-1], end='')
                     stage = Stage.IMP
                     it = impTrie
+                elif FlowCmds.MARK == cmd:
+                    stage = Stage.PARAM
+                elif FlowCmds.CALL == cmd:
+                    stage = Stage.PARAM
+                elif FlowCmds.JUMP == cmd:
+                    stage = Stage.PARAM
+                elif FlowCmds.JZER == cmd:
+                    stage = Stage.PARAM
+                elif FlowCmds.JNEG == cmd:
+                    stage = Stage.PARAM
                 elif FlowCmds.ENDP == cmd:
                     break
                 else:
@@ -234,6 +249,42 @@ for e in code:
                 num = int(s, 2)
                 if StackCmds.PUSH == cmd:
                     stk.append(num)
+                elif FlowCmds.MARK == cmd:
+                    location = labels.get(num, None)
+                    if location != None:
+                        raise Exception("labels must be unique, duplicate label:{}".format(num))
+                    else:
+                        labels[num] = i
+                elif FlowCmds.JUMP == cmd:
+                    location = labels.get(num, None)
+                    if location is None:
+                        raise Exception("label {} not found".format(num))
+                    else:
+                        i = location
+                elif FlowCmds.CALL == cmd:
+                    location = labels.get(num, None)
+                    if location is None:
+                        raise Exception("procedure {} not found".format(num))
+                    else:
+                        stk.append(i)
+                        i = location
+ 
+                elif FlowCmds.JZER == cmd:
+                    location = labels.get(num, None)
+                    if location is None:
+                        raise Exception("label {} not found".format(num))
+                    else:
+                        if len(stk) > 0 and stk[-1] == 0:
+                            i = location
+                elif FlowCmds.JNEG == cmd:
+                    location = labels.get(num, None)
+                    if location is None:
+                        raise Exception("label {} not found".format(num))
+                    else:
+                        if len(stk) > 0 and stk[-1] < 0:
+                            i = location
+
             par.clear()
             stage = Stage.IMP
             it = impTrie
+
